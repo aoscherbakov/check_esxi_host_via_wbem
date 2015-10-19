@@ -590,13 +590,15 @@ if '0.7.0' in pywbemversion:
   except:
     #raise
     verboseoutput("Connection error, disable SSL certification verification (probably patched pywbem)")
-    wbemclient = pywbem.WBEMConnection(hosturl, (user,password), no_verification=True)
+    #wbemclient = pywbem.WBEMConnection(hosturl, (user,password), no_verification=True) remove no_verification because not supported
+    wbemclient = pywbem.WBEMConnection(hosturl, (user,password))
   else:
     verboseoutput("Connection worked")
     wbemclient = pywbem.WBEMConnection(hosturl, (user,password))
 # pywbem 0.8.0 and later
 elif '0.8.0' in pywbemversion:
-  wbemclient = pywbem.WBEMConnection(hosturl, (user,password), NS, no_verification=True)
+  #wbemclient = pywbem.WBEMConnection(hosturl, (user,password), NS, no_verification=True)
+  wbemclient = pywbem.WBEMConnection(hosturl, (user,password), NS)
 
 # Add a timeout for the script. When using with Nagios, the Nagios timeout cannot be < than plugin timeout.
 if on_windows == False and timeout > 0:
