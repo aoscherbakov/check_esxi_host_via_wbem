@@ -880,13 +880,15 @@ if perf == '|':
   perf = ''
 
 if GlobalStatus == ExitOK :
-  print "OK - Server: %s %s %s%s" % (server_info, SerialNumber, bios_info, perf)
+  #print "OK - Server: %s %s %s%s" % (server_info, SerialNumber, bios_info, perf)
+  print "OK - Server: %s %s" % (server_info, SerialNumber)
 
 elif GlobalStatus == ExitUnknown :
   print "UNKNOWN: %s" % (ExitMsg) #ARR
 
 else:
-  print "%s- Server: %s %s %s%s" % (ExitMsg, server_info, SerialNumber, bios_info, perf)
+  #print "%s- Server: %s %s %s%s" % (ExitMsg, server_info, SerialNumber, bios_info, perf)
+  print "%s- Server: %s %s" % (ExitMsg, server_info, SerialNumber)
 
 sys.exit (GlobalStatus)
 
