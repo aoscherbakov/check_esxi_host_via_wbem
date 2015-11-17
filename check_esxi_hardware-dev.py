@@ -20,7 +20,7 @@ def parse_arguments():
     argparser = argparse.ArgumentParser(description="Check ESXi CIM Classes")
     argparser.add_argument("--host", help="ESXi host to check",required=True)
     argparser.add_argument("--hw", help="what hardware to check", choices=['raid','power','temp'],required=True)
-    argparser.add_argument("--model","-m", help="print server model", action='store_true')
+    #argparser.add_argument("--model","-m", help="print server model", action='store_true')
     argparser.add_argument("--verbose","-v", help="verbose output", action='store_true')
     argparser.add_argument("--auth","-u", help="authentication data USER:PASS", required=True)
 
@@ -60,27 +60,40 @@ user, password = args.auth.split(":")
 
 wbemconn = pywbem.WBEMConnection(hosturl,(user,password), no_verification=True)
 
+wbemchassis = connect('CIM_Chassis')
+
+for instance in wbemchassis:
+        mf = str(instance['Manufacturer'])
+        model = str(instance['Model'])
+        sn = str(instance['SerialNumber'])
+
+model = "{} {} {} ".format(mf,model,sn)
+
 if args.verbose:
-    print("your host: {}".format(hosturl))
-    print("your hardware to check: {}".format(args.hw))
-
-if args.model:
-    wbemchassis = connect('CIM_Chassis')
-    
-    for instance in wbemchassis:
-            mf = str(instance['Manufacturer'])
-            model = str(instance['Model'])
-            sn = str(instance['SerialNumber'])
-
-    model = "{} {} {} ".format(mf,model,sn)
     ExitMsg += model
 
 if args.hw == 'power':
     wbempower = connect('OMC_PowerSupply')
     for instance in wbempower:
         name = str(instance['ElementName'])
-        status = interpretStatus(instance['HealthState'])
-        if status == 'WARNING' or status == 'CRITICAL':
+        if instance['HealthState'] is not None :
+            status = interpretStatus(instance['HealthState'])
+        else:
+            status = "None"
+        res = "{} {} ".format(name,status)
+        if status == 'WARNING' or status == 'CRITICAL' or args.verbose:
+            ExitMsg += res
+            result_list.append('Failure')
+
+if args.hw == 'raid':
+    wbemraid = connect('VMware_StorageExtent')
+    for instance in wbemraid:
+        name = str(instance['ElementName'])
+        if instance['HealthState'] is not None :
+            status = interpretStatus(instance['HealthState'])
+        else:
+            status = "None"
+        if status == 'WARNING' or status == 'CRITICAL' or args.verbose:
             res = "{} {} ".format(name,status)
             ExitMsg += res
             result_list.append('Failure')
