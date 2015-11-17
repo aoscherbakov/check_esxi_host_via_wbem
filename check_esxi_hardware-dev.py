@@ -3,7 +3,7 @@
 ## Written by Shcherbakov A.O.     ##
 ##                                 ##
 ## Check ESXi host hardware status ##
-## v.0.1                           ##
+## v.0.3                           ##
 ##                                 ##
 ## pywbem v.8.0 requied            ##
 ##                                 ##
@@ -13,10 +13,8 @@ import pywbem
 import argparse
 import sys
 
-ExitOK = 0
-ExitWarning = 1
-ExitCritical = 2
-ExitUnknown = 3
+ExitMsg = ''
+result_list = []
 
 def parse_arguments():
     argparser = argparse.ArgumentParser(description="Check ESXi CIM Classes")
@@ -45,14 +43,15 @@ def connect(classe):
 
 def interpretStatus(status):
     result = {
-        0  : ExitOK,    # Unknown
-        5  : ExitOK,    # OK
-        10 : ExitWarning,  # Degraded
-        15 : ExitWarning,  # Minor
-        20 : ExitCritical,  # Major
-        25 : ExitCritical,  # Critical
-        30 : ExitCritical,  # Non-recoverable Error
+        0  : 'OK',    # Unknown
+        5  : 'OK',    # OK
+        10 : 'WARNING',  # Degraded
+        15 : 'WARNING',  # Minor
+        20 : 'CRITICAL',  # Major
+        25 : 'CRITICAL',  # Critical
+        30 : 'CRITICAL',  # Non-recoverable Error
         }[status]
+
     return result
 
 args = parse_arguments()
@@ -69,31 +68,24 @@ if args.model:
     wbemchassis = connect('CIM_Chassis')
     
     for instance in wbemchassis:
-        model = {
-            'mf': instance['Manufacturer'],
-            'model': instance['Model'],
-            'sn': instance['SerialNumber']
-            }
-        print model['mf'],model['model'],model['sn']
+            mf = str(instance['Manufacturer'])
+            model = str(instance['Model'])
+            sn = str(instance['SerialNumber'])
+
+    model = "{} {} {} ".format(mf,model,sn)
+    ExitMsg += model
 
 if args.hw == 'power':
     wbempower = connect('OMC_PowerSupply')
     for instance in wbempower:
-        name = instance['ElementName']
+        name = str(instance['ElementName'])
         status = interpretStatus(instance['HealthState'])
- #       interpretStatus = {
- #           0  : ExitOK,    # Unknown
- #           5  : ExitOK,    # OK
- #           10 : ExitWarning,  # Degraded
- #           15 : ExitWarning,  # Minor
- #           20 : ExitCritical,  # Major
- #           25 : ExitCritical,  # Critical
- #           30 : ExitCritical,  # Non-recoverable Error
- #       }[status]
-        
-        if status == ExitWarning:
-            print "WARNING: {} Failed, ".format(name),
-        elif status == ExitCritical:
-            print "CRITICAL: {} Failed, ".format(name),
-        else:
-            print "{} Status OK, ".format(name),
+        if status == 'WARNING' or status == 'CRITICAL':
+            res = "{} {} ".format(name,status)
+            ExitMsg += res
+            result_list.append('Failure')
+
+if 'Failure' not in result_list:
+    print "Status OK"
+else:
+    print ExitMsg
