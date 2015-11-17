@@ -11,9 +11,12 @@
 
 import pywbem
 import argparse
+import sys
 
-#user='root'
-#password='kirgudu_1234'
+ExitOK = 0
+ExitWarning = 1
+ExitCritical = 2
+ExitUnknown = 3
 
 def parse_arguments():
     argparser = argparse.ArgumentParser(description="Check ESXi CIM Classes")
@@ -26,39 +29,71 @@ def parse_arguments():
     return argparser.parse_args()
 
 
-def showmodel():
+def connect(classe):
     try:
-      wbemchassis=wbemconn.EnumerateInstances('CIM_Chassis')
+        wbemclass=wbemconn.EnumerateInstances(classe)
     except pywbem.cim_operations.CIMError,args:
-      if ( args[1].find('Socket error') >= 0 ):
-        print "UNKNOWN: %s" %args
-        sys.exit (ExitUnknown)
-      else:
-        verboseoutput("Unknown CIM Error: %s" % args)
+        if ( args[1].find('Socket error') >= 0 ):
+            print("UNKNOWN: {}".format(args))
+            sys.exit (ExitUnknown)
+        else:
+            print("UNKNOWN CIM Error: {}".format(args))
     except pywbem.cim_http.AuthError,arg:
-      verboseoutput("Global exit set to UNKNOWN")
-      GlobalStatus = ExitUnknown
-      print "UNKNOWN: Authentication Error"
-      sys.exit (GlobalStatus)
-    
-    for instance in wbemchassis:
-        vendor = instance['Manufacturer']
-        hw_model = instance['Model']
-        sn = instance['SerialNumber']
-    
-    model = [ vendor, hw_model, sn ]
-    return model
+        print("UNKNOWN: Authentication Error")
+        sys.exit (ExitUnknown)
+    return wbemclass
+
+def interpretStatus(status):
+    result = {
+        0  : ExitOK,    # Unknown
+        5  : ExitOK,    # OK
+        10 : ExitWarning,  # Degraded
+        15 : ExitWarning,  # Minor
+        20 : ExitCritical,  # Major
+        25 : ExitCritical,  # Critical
+        30 : ExitCritical,  # Non-recoverable Error
+        }[status]
+    return result
 
 args = parse_arguments()
 hosturl = "https://" + args.host
 user, password = args.auth.split(":")
 
+wbemconn = pywbem.WBEMConnection(hosturl,(user,password), no_verification=True)
+
 if args.verbose:
     print("your host: {}".format(hosturl))
     print("your hardware to check: {}".format(args.hw))
 
-wbemconn = pywbem.WBEMConnection(hosturl,(user,password), no_verification=True)
-
 if args.model:
-    for key in showmodel():
-        print key,
+    wbemchassis = connect('CIM_Chassis')
+    
+    for instance in wbemchassis:
+        model = {
+            'mf': instance['Manufacturer'],
+            'model': instance['Model'],
+            'sn': instance['SerialNumber']
+            }
+        print model['mf'],model['model'],model['sn']
+
+if args.hw == 'power':
+    wbempower = connect('OMC_PowerSupply')
+    for instance in wbempower:
+        name = instance['ElementName']
+        status = interpretStatus(instance['HealthState'])
+ #       interpretStatus = {
+ #           0  : ExitOK,    # Unknown
+ #           5  : ExitOK,    # OK
+ #           10 : ExitWarning,  # Degraded
+ #           15 : ExitWarning,  # Minor
+ #           20 : ExitCritical,  # Major
+ #           25 : ExitCritical,  # Critical
+ #           30 : ExitCritical,  # Non-recoverable Error
+ #       }[status]
+        
+        if status == ExitWarning:
+            print "WARNING: {} Failed, ".format(name),
+        elif status == ExitCritical:
+            print "CRITICAL: {} Failed, ".format(name),
+        else:
+            print "{} Status OK, ".format(name),
