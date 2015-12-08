@@ -3,7 +3,7 @@
 ## Written by Shcherbakov A.O.     ##
 ##                                 ##
 ## Check ESXi host hardware status ##
-## v.0.3                           ##
+## v.0.4                           ##
 ##                                 ##
 ## pywbem v.8.0 requied            ##
 ##                                 ##
@@ -20,7 +20,6 @@ def parse_arguments():
     argparser = argparse.ArgumentParser(description="Check ESXi CIM Classes")
     argparser.add_argument("--host", help="ESXi host to check",required=True)
     argparser.add_argument("--hw", help="what hardware to check", choices=['raid','power','temp'],required=True)
-    #argparser.add_argument("--model","-m", help="print server model", action='store_true')
     argparser.add_argument("--verbose","-v", help="verbose output", action='store_true')
     argparser.add_argument("--auth","-u", help="authentication data USER:PASS", required=True)
 
@@ -68,9 +67,7 @@ for instance in wbemchassis:
         sn = str(instance['SerialNumber'])
 
 model = "{} {} {} ".format(mf,model,sn)
-
-if args.verbose:
-    ExitMsg += model
+ExitMsg += model
 
 if args.hw == 'power':
     wbempower = connect('OMC_PowerSupply')
@@ -80,9 +77,9 @@ if args.hw == 'power':
             status = interpretStatus(instance['HealthState'])
         else:
             status = "None"
-        res = "{} {} ".format(name,status)
+        res = "{} {}".format(name,status)
         if status == 'WARNING' or status == 'CRITICAL' or args.verbose:
-            ExitMsg += res
+            ExitMsg += res + "; " 
             result_list.append('Failure')
 
 if args.hw == 'raid':
@@ -94,11 +91,11 @@ if args.hw == 'raid':
         else:
             status = "None"
         if status == 'WARNING' or status == 'CRITICAL' or args.verbose:
-            res = "{} {} ".format(name,status)
-            ExitMsg += res
+            res = "{} {}".format(name,status)
+            ExitMsg += res + "; "
             result_list.append('Failure')
 
 if 'Failure' not in result_list:
-    print "Status OK"
+    print ExitMsg + "Status OK"
 else:
     print ExitMsg
