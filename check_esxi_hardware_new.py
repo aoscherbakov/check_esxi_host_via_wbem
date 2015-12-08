@@ -3,9 +3,9 @@
 ## Written by Shcherbakov A.O.     ##
 ##                                 ##
 ## Check ESXi host hardware status ##
-## v.0.6                           ##
+## v.0.7                           ##
 ##                                 ##
-## pywbem v.8.0 requied            ##
+## pywbem requied	           ##
 ##                                 ##
 #####################################
 
@@ -71,7 +71,9 @@ args = parse_arguments()
 hosturl = "https://" + args.host
 user, password = args.auth.split(":")
 
-wbemconn = pywbem.WBEMConnection(hosturl,(user,password), no_verification=True)
+#change it if pywbem version => 0.8
+#wbemconn = pywbem.WBEMConnection(hosturl,(user,password), no_verification=True)
+wbemconn = pywbem.WBEMConnection(hosturl,(user,password))
 
 # set timout and exit if time has expired; use linux signals
 if args.timeout:
@@ -107,6 +109,6 @@ for instance in wbempower:
         result_list.append('Failure')
 
 if 'Failure' not in result_list:
-    print ExitMsg + "Status OK; "
+    print ExitMsg + "Status OK "
 else:
     print ExitMsg
