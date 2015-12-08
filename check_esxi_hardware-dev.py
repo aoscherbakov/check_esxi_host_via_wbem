@@ -3,7 +3,7 @@
 ## Written by Shcherbakov A.O.     ##
 ##                                 ##
 ## Check ESXi host hardware status ##
-## v.0.4                           ##
+## v.0.5                           ##
 ##                                 ##
 ## pywbem v.8.0 requied            ##
 ##                                 ##
@@ -53,6 +53,13 @@ def interpretStatus(status):
 
     return result
 
+def switch_hw(hw):
+    switcher = {
+            'power': 'OMC_PowerSupply',
+            'raid': 'VMware_StorageExtent',
+            }
+    return switcher.get(hw)
+
 args = parse_arguments()
 hosturl = "https://" + args.host
 user, password = args.auth.split(":")
@@ -69,33 +76,21 @@ for instance in wbemchassis:
 model = "{} {} {} ".format(mf,model,sn)
 ExitMsg += model
 
-if args.hw == 'power':
-    wbempower = connect('OMC_PowerSupply')
-    for instance in wbempower:
-        name = str(instance['ElementName'])
-        if instance['HealthState'] is not None :
-            status = interpretStatus(instance['HealthState'])
-        else:
-            status = "None"
-        res = "{} {}".format(name,status)
-        if status == 'WARNING' or status == 'CRITICAL' or args.verbose:
-            ExitMsg += res + "; " 
-            result_list.append('Failure')
+hw = switch_hw(args.hw)
 
-if args.hw == 'raid':
-    wbemraid = connect('VMware_StorageExtent')
-    for instance in wbemraid:
-        name = str(instance['ElementName'])
-        if instance['HealthState'] is not None :
-            status = interpretStatus(instance['HealthState'])
-        else:
-            status = "None"
-        if status == 'WARNING' or status == 'CRITICAL' or args.verbose:
-            res = "{} {}".format(name,status)
-            ExitMsg += res + "; "
-            result_list.append('Failure')
+wbempower = connect(hw)
+for instance in wbempower:
+    name = str(instance['ElementName'])
+    if instance['HealthState'] is not None :
+        status = interpretStatus(instance['HealthState'])
+    else:
+        status = "None"
+    res = "{} {}".format(name,status)
+    if status == 'WARNING' or status == 'CRITICAL' or args.verbose:
+        ExitMsg += res + "; " 
+        result_list.append('Failure')
 
 if 'Failure' not in result_list:
-    print ExitMsg + "Status OK"
+    print ExitMsg + "Status OK; "
 else:
     print ExitMsg
