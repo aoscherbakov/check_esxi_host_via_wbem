@@ -22,6 +22,7 @@ def parse_arguments():
     argparser.add_argument("--host", help="ESXi host to check",required=True)
     argparser.add_argument("--hw", help="what hardware to check", choices=['raid','power','temp'],required=True)
     argparser.add_argument("--verbose","-v", help="verbose output", action='store_true')
+    argparser.add_argument("--model","-m", help="show host model", action='store_true')
     argparser.add_argument("--timeout","-t", help="check timeout", type=int)
     argparser.add_argument("--auth","-u", help="authentication data USER:PASS", required=True)
 
@@ -78,15 +79,16 @@ if args.timeout:
 	signal.alarm(args.timeout)
 
 #describe host model version and serial number
-wbemchassis = connect('CIM_Chassis')
+if args.model:
+    wbemchassis = connect('CIM_Chassis')
 
-for instance in wbemchassis:
-        mf = str(instance['Manufacturer'])
-        model = str(instance['Model'])
-        sn = str(instance['SerialNumber'])
-
-model = "{} {} {} ".format(mf,model,sn)
-ExitMsg += model
+    for instance in wbemchassis:
+            mf = str(instance['Manufacturer'])
+            model = str(instance['Model'])
+            sn = str(instance['SerialNumber'])
+    
+    model = "{} {} {} ".format(mf,model,sn)
+    ExitMsg += model
 
 #set hardware type to check
 hw = switch_hw(args.hw)
