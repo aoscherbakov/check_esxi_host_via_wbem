@@ -3,7 +3,7 @@
 ## Written by Shcherbakov A.O.     ##
 ##                                 ##
 ## Check ESXi host hardware status ##
-## v.0.5                           ##
+## v.0.6                           ##
 ##                                 ##
 ## pywbem v.8.0 requied            ##
 ##                                 ##
@@ -12,6 +12,7 @@
 import pywbem
 import argparse
 import sys
+import signal
 
 ExitMsg = ''
 result_list = []
@@ -21,6 +22,7 @@ def parse_arguments():
     argparser.add_argument("--host", help="ESXi host to check",required=True)
     argparser.add_argument("--hw", help="what hardware to check", choices=['raid','power','temp'],required=True)
     argparser.add_argument("--verbose","-v", help="verbose output", action='store_true')
+    argparser.add_argument("--timeout","-t", help="check timeout", type=int)
     argparser.add_argument("--auth","-u", help="authentication data USER:PASS", required=True)
 
     return argparser.parse_args()
@@ -32,12 +34,12 @@ def connect(classe):
     except pywbem.cim_operations.CIMError,args:
         if ( args[1].find('Socket error') >= 0 ):
             print("UNKNOWN: {}".format(args))
-            sys.exit (ExitUnknown)
+            sys.exit (3)
         else:
             print("UNKNOWN CIM Error: {}".format(args))
     except pywbem.cim_http.AuthError,arg:
         print("UNKNOWN: Authentication Error")
-        sys.exit (ExitUnknown)
+        sys.exit (3)
     return wbemclass
 
 def interpretStatus(status):
@@ -60,12 +62,22 @@ def switch_hw(hw):
             }
     return switcher.get(hw)
 
+def handler(signum, frame):
+    print 'UNKNOWN: Execution time limit has expired'
+    sys.exit(3)
+
 args = parse_arguments()
 hosturl = "https://" + args.host
 user, password = args.auth.split(":")
 
 wbemconn = pywbem.WBEMConnection(hosturl,(user,password), no_verification=True)
 
+# set timout and exit if time has expired; use linux signals
+if args.timeout:
+	signal.signal(signal.SIGALRM, handler)
+	signal.alarm(args.timeout)
+
+#describe host model version and serial number
 wbemchassis = connect('CIM_Chassis')
 
 for instance in wbemchassis:
@@ -76,8 +88,10 @@ for instance in wbemchassis:
 model = "{} {} {} ".format(mf,model,sn)
 ExitMsg += model
 
+#set hardware type to check
 hw = switch_hw(args.hw)
 
+#main procedure
 wbempower = connect(hw)
 for instance in wbempower:
     name = str(instance['ElementName'])
